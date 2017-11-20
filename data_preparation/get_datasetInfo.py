@@ -38,8 +38,10 @@ if __name__ == "__main__":
         # get and save abstracts'filenames
         abstractsNames = getFilenames(abstractsPath)
         writeFilenames(filenamesPath, abstractsNames)
-
+        
+        #get and save abstracts'text
         for abstractsName in abstractsNames:
             abstractsNamePath = abstractsPath + '/' + abstractsName
             text = readAfile(abstractsNamePath)
             writeAfile(abstractsText, text)
+
