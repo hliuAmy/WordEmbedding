@@ -92,6 +92,25 @@ def topicG(datasets=['KDD', 'WWW']):
             edgeW = topicGAll[edge[0]][edge[1]]['weight']
             topicGAll[edge[0]][edge[1]]['weight'] = nodeW * edgeW
 
+        # sum of weights
+        # sumofweights = 0.0
+        # for u, v, d in topicGAll.edges(data=True):
+        #     sumofweights += d['weight']
+        # print("sum of edges: " + str(sumofweights))
+        # for edge in topicGAll.edges():
+        #     oldWeight = topicGAll[edge[0]][edge[1]]['weight']
+        #     topicGAll[edge[0]][edge[1]]['weight'] = oldWeight / sumofweights
+        weights = []
+        for u, v, d in topicGAll.edges(data=True):
+            weights.append(d['weight'])
+        maxweight = max(weights)
+        minweight = min(weights)
+        # update every edges'weight
+        for edge in topicGAll.edges():
+            oldWeight = topicGAll[edge[0]][edge[1]]['weight']
+            newWeight = (oldWeight - minweight) / (maxweight - minweight)
+            topicGAll[edge[0]][edge[1]]['weight'] = newWeight
+
         # save topicG
         print("save topicG")
         print("write to file")
