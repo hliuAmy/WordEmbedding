@@ -14,11 +14,11 @@ def probability(topicNum, wordID, p):
 
 def topicG(datasets=['KDD', 'WWW']):
     for dataset in datasets:
-        twp_MatrixPath = './data_temp/' + dataset + '/LDA/model-final.phi'
-        document_topic_Map = './data_temp/' + dataset + '/LDA/model-final.tassign'
-        word_indexPath = './data_temp/' + dataset + '/LDA/wordmap.txt'
+        twp_MatrixPath = './data_temp/' + dataset + '/LDA100/model-final.phi'
+        document_topic_Map = './data_temp/' + dataset + '/LDA100/model-final.tassign'
+        word_indexPath = './data_temp/' + dataset + '/LDA100/wordmap.txt'
         filelistPath = './data_temp/' + dataset + '/abstractsNames'
-        resultGPath = './result_graph/' + dataset + '/topicG.data'
+        resultGPath = './result_graph/' + dataset + '/topicG100.data'
 
         # data preparation
         # get t-w Matrix,the value is p(w/t)

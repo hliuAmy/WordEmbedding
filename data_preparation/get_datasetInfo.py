@@ -1,6 +1,16 @@
 import os
 import csv
 from re import match
+from nltk.stem import SnowballStemmer
+
+
+def normalized_token(token):
+    """
+    Use stemmer to normalize the token.
+    建图时调用该函数，而不是在file_text改变词形的存储
+    """
+    stemmer = SnowballStemmer("english")
+    return stemmer.stem(token.lower())
 
 
 def getFilenames(path):
@@ -39,7 +49,7 @@ def textFormat(text):
     for word in words:
         wordAndtag = word.split('_')
         if istag(wordAndtag[-1]):
-            context.append(wordAndtag[0].lower())
+            context.append(normalized_token(wordAndtag[0].lower()))
     context = ' '.join(context)
     return context
 
@@ -50,8 +60,8 @@ def datasetsInfo(datasets=['KDD', 'WWW']):
         abstractsPath = '../dataset/' + dataset + '/abstracts'
         filenamesPath = './data_temp/' + dataset + '/abstractsNames'
         abstractsText = './data_temp/' + dataset + '/abstracts.data'
-        if os.path.exist(abstractsText):
-            os.remove(abstractsText)
+        # if os.path.exist(abstractsText):
+        #     os.remove(abstractsText)
 
         # get and save abstracts'filenames
         abstractsNames = getFilenames(abstractsPath)
