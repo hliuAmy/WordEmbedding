@@ -22,6 +22,10 @@ def readFile(path):
     G.add_weighted_edges_from(edges)
     return G
 
+def combinationVec(sourceVec,distinationVec,alpha):
+    for key in sourceVec:
+        sourceVec[key]=alpha*sourceVec[key]+(1-alpha)*distinationVec[key]
+    return sourceVec
 
 def main(total_iter, dim, topicNum, dataset,alpha):
     '''
@@ -30,8 +34,9 @@ def main(total_iter, dim, topicNum, dataset,alpha):
     input_wordsG_path = '../data_preparation/result_graph/' + \
         dataset + '/wordsG_tf_count.data'
     input_topicG_path = '../data_preparation/result_graph/' + dataset + '/topicG.data'
-    words_path = '../result/' + dataset + '/onlywords.emb_noavg_tf_count_noM3'
-    emb_words_path = '../result/' + dataset + '/words.emb_noavg_tf_count_noM3'
+    emb_words_path = '../result/' + dataset + '/onlywords.emb_noM_'
+    emb_topic_words_path = '../result/' + dataset + '/words.emb_noM_'
+    emb_cmb_words_path = '../result/' + dataset + '/cmb_words.emb_noM_'
 
     print("*****Read Data*****")
     wordsG = readFile(input_wordsG_path)
@@ -46,9 +51,16 @@ def main(total_iter, dim, topicNum, dataset,alpha):
     trainGT.initial()
 
     print("*****train*****")
-    trainG.trainW(total_iter,alpha)
-    trainG.output(words_path, trainG.wordsVec)
-    trainGT.trainT_noM(total_iter, trainG.wordsVec, emb_words_path, trainG.G,alpha)
+    wordsVec_init=trainG.wordsVec
+    trainG.trainW(total_iter)
+    trainG.output(emb_words_path, trainG.wordsVec)
+    wordsVecT=trainGT.trainT_noM(total_iter, wordsVec_init, trainG.G)
+    trainGT.output(emb_topic_words_path, wordsVecT)
+
+    print('******combination*****')
+    for alpha in [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]:
+        cmbVec=combinationVec(trainG.wordsVec,wordsVecT,alpha)
+        trainG.output(emb_cmb_words_path+str(alpha),cmbVec)
 
 
 if __name__ == '__main__':

@@ -152,7 +152,7 @@ class embTrain:
         self.initSigmoidTable()
         print('ok')
 
-    def trainW(self, total_iter,alpha):
+    def trainW(self, total_iter):
         for i in range(total_iter):
 
             if i % 1000000 == 0:
@@ -189,7 +189,7 @@ class embTrain:
                 self.contextVec[target] += g * self.wordsVec[u]
             self.wordsVec[u] += vec_error
 
-    def trainT(self, total_iter, wordsVec, outputPath, G,alpha):
+    def trainT(self, total_iter, wordsVec, outputPath, G):
         M = np.zeros((self.dim, self.dim))
         for j in range(total_iter):
             if j % 1000000 == 0:
@@ -234,7 +234,7 @@ class embTrain:
         self.output(outputPath, wordsVec)
         self.avgVec(G, wordsVec)
 
-    def trainT_noM(self, total_iter, wordsVec, outputPath, G,alpha):
+    def trainT_noM(self, total_iter, wordsVec, G):
         for j in range(total_iter):
             if j % 1000000 == 0:
                 self.rho = self.init_rho * (1.0 - float(j) / total_iter)
@@ -272,7 +272,7 @@ class embTrain:
                 vec_error =vec_error+ g * self.contextVec[target]
                 self.contextVec[target] += g * wordsVec[u]
             wordsVec[u] = wordsVec[u]+vec_error
-        self.output(outputPath, wordsVec)
+        return wordsVec
 
     def trainINE(self):
         pass
