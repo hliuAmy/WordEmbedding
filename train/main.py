@@ -23,14 +23,15 @@ def readFile(path):
     return G
 
 
-def main(total_iter, dim, topicNum, dataset):
+def main(total_iter, dim, topicNum, dataset,alpha):
     '''
     total_iter:number of sample edge
     '''
-    input_wordsG_path = '../data_preparation/result_graph/' + dataset + '/wordsG.data'
-    input_topicG_path = '../data_preparation/result_graph/' + \
-        dataset + '/topicG.data'
-    emb_words_path = '../result/' + dataset + '/words.emb'
+    input_wordsG_path = '../data_preparation/result_graph/' + \
+        dataset + '/wordsG_tf_count.data'
+    input_topicG_path = '../data_preparation/result_graph/' + dataset + '/topicG.data'
+    words_path = '../result/' + dataset + '/onlywords.emb_noavg_tf_count_noM3'
+    emb_words_path = '../result/' + dataset + '/words.emb_noavg_tf_count_noM3'
 
     print("*****Read Data*****")
     wordsG = readFile(input_wordsG_path)
@@ -45,11 +46,12 @@ def main(total_iter, dim, topicNum, dataset):
     trainGT.initial()
 
     print("*****train*****")
-    trainG.trainW(total_iter)
-    trainGT.trainT(total_iter, trainG.wordsVec, emb_words_path)
+    trainG.trainW(total_iter,alpha)
+    trainG.output(words_path, trainG.wordsVec)
+    trainGT.trainT_noM(total_iter, trainG.wordsVec, emb_words_path, trainG.G,alpha)
 
 
 if __name__ == '__main__':
-    datasets = ['KDD', 'WWW']
+    datasets = ['KDD']
     for dataset in datasets:
-        main(total_iter=100000000, dim=128, topicNum=50, dataset=dataset)
+        main(total_iter=10000000, dim=200, topicNum=50, dataset=dataset,alpha=0.5)

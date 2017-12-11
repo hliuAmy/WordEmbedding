@@ -8,7 +8,7 @@ import csv
 
 class embTrain:
 
-    def __init__(self, G, dim=128, labelG='w'):
+    def __init__(self, G, dim=100, labelG='w'):
         self.G = G
         self.dim = dim
         self.labelG = labelG
@@ -24,7 +24,7 @@ class embTrain:
         self.SIGMOID_BOUND = 6
         self.sigmoid_table_size = 1000
         self.neg_table_size = 1000000
-        self.init_rho = 0.05
+        self.init_rho = 0.025
         self.rho = 0.0
         self.num_negative = 5
 
@@ -54,6 +54,7 @@ class embTrain:
             for node in self.G.nodes():
                 if node.startswith('T'):
                     self.contextVec[node] = np.zeros(self.dim)
+                    #self.contextVec[node]=np.random.uniform(low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
 
     def initAliasTable(self):
         length = len(self.edges_weight)
@@ -151,7 +152,7 @@ class embTrain:
         self.initSigmoidTable()
         print('ok')
 
-    def trainW(self, total_iter):
+    def trainW(self, total_iter,alpha):
         for i in range(total_iter):
 
             if i % 1000000 == 0:
@@ -188,7 +189,7 @@ class embTrain:
                 self.contextVec[target] += g * self.wordsVec[u]
             self.wordsVec[u] += vec_error
 
-    def trainT(self, total_iter, wordsVec, outputPath):
+    def trainT(self, total_iter, wordsVec, outputPath, G,alpha):
         M = np.zeros((self.dim, self.dim))
         for j in range(total_iter):
             if j % 1000000 == 0:
@@ -223,13 +224,54 @@ class embTrain:
                         i -= 1
                         continue
                     label = 0
-                x = np.dot(np.dot(wordsVec[u], M), self.contextVec[target])
+                x = np.dot(np.dot(wordsVec[u].T, M), self.contextVec[target])
                 g = (label - self.FastSigmoid(x)) * self.rho
-                vec_error += g * np.dot(self.contextVec[target], M)
-                M_error += g * np.dot(wordsVec[u].T, self.contextVec[target])
-                self.contextVec[target] += g * np.dot(wordsVec[u].T, M.T)
-            wordsVec[u] += vec_error
-            M += M_error
+                vec_error =vec_error+ g * np.dot(M,self.contextVec[target])
+                M_error =M_error+ g * np.dot(wordsVec[u], self.contextVec[target].T)
+                self.contextVec[target] += g * np.dot(M,wordsVec[u])
+            wordsVec[u] = wordsVec[u]+vec_error
+            M =M+ M_error
+        self.output(outputPath, wordsVec)
+        self.avgVec(G, wordsVec)
+
+    def trainT_noM(self, total_iter, wordsVec, outputPath, G,alpha):
+        for j in range(total_iter):
+            if j % 1000000 == 0:
+                self.rho = self.init_rho * (1.0 - float(j) / total_iter)
+                if self.rho < self.init_rho * 0.0001:
+                    self.rho = self.init_rho * 0.0001
+                print(j, ':', self.rho)
+            vec_error = np.zeros(self.dim)
+            random1 = np.random.random()
+            random2 = np.random.random()
+            edgeID = int(self.sampleAnEdge(random1, random2))
+            edge = self.edges[edgeID]
+            u = edge[0]
+            v = edge[1]
+            w = float(edge[2])
+            label = 0
+            target = ''
+            if u not in wordsVec.keys():
+                j -= 1
+                continue
+            for i in range(self.num_negative + 1):
+                if i == 0:
+                    label = 1
+                    target = v
+                else:
+                    neg_index = int(self.neg_table_size * np.random.random())
+                    target = self.neg_table[neg_index]
+                    if u == None or v == None or target == None:
+                        print(u, v, neg_index, target)
+                    if target == u or target == v:
+                        i -= 1
+                        continue
+                    label = 0
+                x = np.dot(wordsVec[u],self.contextVec[target])
+                g = (label - self.FastSigmoid(x)) * self.rho
+                vec_error =vec_error+ g * self.contextVec[target]
+                self.contextVec[target] += g * wordsVec[u]
+            wordsVec[u] = wordsVec[u]+vec_error
         self.output(outputPath, wordsVec)
 
     def trainINE(self):
@@ -243,5 +285,32 @@ class embTrain:
                 row.append(key)
                 for item in value:
                     row.append(float(item))
+                row[1:] = self.regularlizationVec(row[1:])
                 csvWriter.writerow(row)
             f.close()
+
+    def regularlizationVec(self, vec):
+        from sklearn import preprocessing
+        vec1 = []
+        vec1.append(vec)
+        vec1 = preprocessing.normalize(vec1, 'l2')
+        return vec1[0]
+
+    def normalizationVec(self, vec):
+        minvalue = min(vec)
+        maxvalue = max(vec)
+        normvalue = maxvalue - minvalue
+        for i in range(len(vec)):
+            vec[i] = (vec[i] - minvalue) / normvalue
+        return vec
+
+    def avgVec(self, G, wordsVec):
+        for word in G.nodes():
+            context = G.neighbors(word)
+            avg = wordsVec[word]
+            for c in context:
+                avg = avg + wordsVec[c]
+            avg = avg / len(context)
+            wordsVec[word] = avg
+        path = '../result/KDD/words.emb_avg_tf_count_noM'
+        self.output(path, wordsVec)
