@@ -22,33 +22,7 @@ def wordTF(datasetlist):
     return word_tf
 
 
-def edgeW_tf(dataset, filename, text, c, word_tf):
-    # word
-    words = [word for word in text.split() if isword(word)]
-    # co-cccerrence
-    wordsIndex = [(word, index) for index, word in enumerate(words)]
-    edgeWithlen = []
-    for i in range(len(wordsIndex)):
-        context_start = max(i - c, 0)
-        context_end = min(i + c + 1, len(wordsIndex))
-        contexts = wordsIndex[context_start:i] + wordsIndex[i + 1:context_end]
-        for word in contexts:
-            edgeWithlen.append(
-                (wordsIndex[i][0], word[0], float(word_tf[wordsIndex[i][0]]) / abs(wordsIndex[i][1] - word[1])))
-    wordsG = nx.DiGraph()
-    for edge in edgeWithlen:
-        if((edge[0], edge[1])) in wordsG.edges():
-            w = wordsG[edge[0]][edge[1]]["weight"]
-            wordsG.remove_edge(edge[0], edge[1])
-            newEdge = (edge[0], edge[1], edge[2] + w)
-            wordsG.add_weighted_edges_from([newEdge])
-        else:
-            wordsG.add_weighted_edges_from([edge])
-    # print(len(wordsG.edges()))
-    return wordsG
-
-
-def edgeW_tdidf(dataset, filename, text, c):
+def edgeW_tfidf(dataset, filename, text, c):
     # word and tfidf
     words = [word for word in text.split() if isword(word)]
     wordlist = set(words)
@@ -76,44 +50,18 @@ def edgeW_tdidf(dataset, filename, text, c):
     return wordsG
 
 
-def edgeW(dataset, filename, text, c):
-    # word and tfidf
-    words = [word for word in text.split() if isword(word)]
-    # co-cccerrence
-    wordsIndex = [(word, index) for index, word in enumerate(words)]
-    edgeWithlen = []
-    for i in range(len(wordsIndex)):
-        context_start = max(i - c, 0)
-        context_end = min(i + c + 1, len(wordsIndex))
-        contexts = wordsIndex[context_start:i] + wordsIndex[i + 1:context_end]
-        for word in contexts:
-            edgeWithlen.append(
-                (wordsIndex[i][0], word[0], float(1) / abs(wordsIndex[i][1] - word[1])))
-    wordsG = nx.DiGraph()
-    for edge in edgeWithlen:
-        if((edge[0], edge[1])) in wordsG.edges():
-            w = wordsG[edge[0]][edge[1]]["weight"]
-            wordsG.remove_edge(edge[0], edge[1])
-            newEdge = (edge[0], edge[1], edge[2] + w)
-            wordsG.add_weighted_edges_from([newEdge])
-        else:
-            wordsG.add_weighted_edges_from([edge])
-    # print(len(wordsG.edges()))
-    return wordsG
 
-
-def wordsG(datasets=['KDD', 'WWW'], c=1):
+def wordsG_tfidf(datasets=['KDD', 'WWW'], c=1):
     '''
     c=1,means windows=3
     '''
     for dataset in datasets:
         filenamesPath = './data_temp/' + dataset + '/abstractsNames'
         datasetText = './data_temp/' + dataset + '/abstracts.data'
-        resultPath = './result_graph/' + dataset + '/wordsG_tf.data'
+        resultPath = './result_graph/' + dataset + '/wordsG_tfidf.data'
 
         filenamelist = filenames(filenamesPath)
         datalist = fileTextList(datasetText)
-        word_tf = wordTF(datalist)
         wordsGAll = nx.DiGraph()
 
         # get words'graph
@@ -121,7 +69,7 @@ def wordsG(datasets=['KDD', 'WWW'], c=1):
             print(str(i) + "st file")
             filename = filenamelist[i]
             text = datalist[i]
-            wordsG = edgeW_tf(dataset, filename, text, c, word_tf)
+            wordsG = edgeW_tfidf(dataset, filename, text, c)
             for edge in wordsG.edges():
                 if edge in wordsGAll.edges():
                     w = wordsGAll[edge[0]][edge[1]]["weight"] + \
@@ -140,9 +88,6 @@ def wordsG(datasets=['KDD', 'WWW'], c=1):
             wordsGAll.remove_edge(edge[0], edge[1])
             wordsGAll.add_weighted_edges_from([(edge[0], edge[1], finalW)])
 
-        # nx.draw(wordsGAll)
-        # plt.savefig("wordsG.png")
-        # plt.show
         print(len(wordsGAll.edges()))
         print("write to file")
         with open(resultPath, mode='w', encoding='utf-8') as f:
@@ -202,7 +147,8 @@ def wordsG_count(datasets=['KDD', 'WWW'], c=1):
     for dataset in datasets:
         filenamesPath = './data_temp/' + dataset + '/abstractsNames'
         datasetText = './data_temp/' + dataset + '/abstracts.data'
-        resultPath = './result_graph/' + dataset + '/wordsG_tf_count.data'
+        resultPath = './result_graph/' + dataset + '/wordsG_tf.data'
+        #resultPath = './result_graph/' + dataset + '/wordsG_tf_count.data'
 
         filenamelist = filenames(filenamesPath)
         datalist = fileTextList(datasetText)
@@ -242,7 +188,8 @@ def wordsG_count(datasets=['KDD', 'WWW'], c=1):
             count = wordsCountGAll[edge[0]][edge[1]]["weight"]
             w_tf = word_tf[edge[0]]
             w = wordsGAll[edge[0]][edge[1]]["weight"]
-            finalW = w * w_tf / (w_out * count)
+            #finalW = w * w_tf / (w_out * count)
+            finalW = w * w_tf / w_out
             wordsGAll.remove_edge(edge[0], edge[1])
             wordsGAll.add_weighted_edges_from([(edge[0], edge[1], finalW)])
 
@@ -260,4 +207,5 @@ def wordsG_count(datasets=['KDD', 'WWW'], c=1):
 
 
 if __name__ == '__main__':
-    wordsG_count(c=1)
+    #wordsG_count(c=1)
+    wordsG_tfidf()
