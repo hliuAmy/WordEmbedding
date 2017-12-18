@@ -22,17 +22,21 @@ def readFile(path):
     G.add_weighted_edges_from(edges)
     return G
 
-def combinationVec(sourceVec,distinationVec,alpha):
-    result={}
+
+def combinationVec(sourceVec, distinationVec, alpha):
+    result = {}
     for key in sourceVec:
-        result[key]=alpha*sourceVec[key]+(1-alpha)*distinationVec[key]
+        result[key] = alpha * sourceVec[key] + \
+            (1 - alpha) * distinationVec[key]
     return result
 
-def main(total_iter, dim, topicNum, dataset,alpha):
+
+def main(total_iter, dim, topicNum, dataset, alpha):
     # '''
     # total_iter:number of sample edge
     # '''
-    input_wordsG_path = '../data_preparation/result_graph/' +  dataset + '/wordsG_tf_count.data'
+    input_wordsG_path = '../data_preparation/result_graph/' + \
+        dataset + '/wordsG_tf_count.data'
     input_topicG_path = '../data_preparation/result_graph/' + dataset + '/topicG.data'
     emb_words_path = '../result/' + dataset + '/onlywords.emb_noM'
     emb_topic_words_path = '../result/' + dataset + '/words.emb_noM'
@@ -55,17 +59,15 @@ def main(total_iter, dim, topicNum, dataset,alpha):
     print("*****train*****")
     trainG.trainW(total_iter)
     trainG.output(emb_words_path, trainG.wordsVec)
-    wordsVecT=trainGT.trainT_noM(total_iter, trainG_temp.wordsVec, trainG.G)
+    wordsVecT = trainGT.trainT_noM(total_iter, trainG_temp.wordsVec, trainG.G)
     trainGT.output(emb_topic_words_path, wordsVecT)
 
-
     print('******combination*****')
-    for alpha in [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]:
-        cmbVec=combinationVec(trainG.wordsVec,wordsVecT,alpha)
-        trainG.output(emb_cmb_words_path+str(alpha),cmbVec)
+    for alpha in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+        cmbVec = combinationVec(trainG.wordsVec, wordsVecT, alpha)
+        trainG.output(emb_cmb_words_path + str(alpha), cmbVec)
 
-
-    #try tf or tfidf for wordsG;we test five times for embedding
+    # try tf or tfidf for wordsG;we test five times for embedding
     # input_wordsG_path = '../data_preparation/result_graph/' +  dataset + '/wordsG_tfidf.data'
     # emb_words_path = '../result/' + dataset + '/emb_tfidf'
     # wordsG = readFile(input_wordsG_path)
@@ -80,4 +82,4 @@ def main(total_iter, dim, topicNum, dataset,alpha):
 if __name__ == '__main__':
     datasets = ['KDD']
     for dataset in datasets:
-        main(total_iter=1000000, dim=200, topicNum=50, dataset=dataset,alpha=0.5)
+        main(total_iter=1000000, dim=200, topicNum=50, dataset=dataset, alpha=0.5)
