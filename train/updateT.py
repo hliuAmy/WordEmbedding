@@ -156,7 +156,7 @@ class updateT:
                     self.rho = self.init_rho * 0.0001
                 print(i, ':', self.rho)
             # self.trainT_noM()
-            self.trainT_noM()
+            self.trainT()
             if i == total_iter - 1:
                 self.output(outputPath, self.wordsVec)
 

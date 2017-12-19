@@ -8,13 +8,23 @@ import csv
 
 class embTrain:
 
-    def __init__(self, wG, wtG, wordsVec, topicsVec, dim):
+    def __init__(self, wG, wtG, wordsVec, topicsVec, M, dim):
         self.wG = wG
         self.wtG = wtG
         self.dim = dim
-        self.wordsVec = wordsVec
+        if wordsVec == None:
+            self.wordsVec = {}
+        else:
+            self.wordsVec = wordsVec
+        if topicsVec == None:
+            self.topicsVec = {}
+        else:
+            self.topicsVec = topicsVec
+        if M == None:
+            self.M = np.zeros((self.dim, self.dim))
+        else:
+            self.M = M
         self.contextVec = {}
-        self.topicsVec = topicsVec
         #self.topicsVec = {}
         self.edges_weight = []
         self.edges = []
@@ -35,7 +45,7 @@ class embTrain:
         self.init_rho = 0.025
         self.rho = 0.0
         self.num_negative = 5
-        self.M = np.zeros((self.dim, self.dim))
+        #self.M = np.zeros((self.dim, self.dim))
         #self.M = np.eye(self.dim)
 
     def readG(self):
@@ -49,6 +59,11 @@ class embTrain:
                 self.nodes_weight[u] = w
         for node in self.wG.nodes():
             self.contextVec[node] = np.zeros(self.dim)
+        if len(self.wordsVec.keys()) == 0:
+            for node in self.wG.nodes():
+                if node.startswith('T'):
+                    self.wordsVec[node] = np.random.uniform(
+                        low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
 
         for u, v, d in self.wtG.edges(data=True):
             w = float(d['weight']) * 10
@@ -58,10 +73,11 @@ class embTrain:
                 self.nodes_weight_t[v] += w
             else:
                 self.nodes_weight_t[v] = w
-        # for node in self.wtG.nodes():
-        #     if node.startswith('T'):
-        #         self.topicsVec[node] = np.random.uniform(
-        #             low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
+        if len(self.topicsVec.keys()) == 0:
+            for node in self.wtG.nodes():
+                if node.startswith('T'):
+                    self.topicsVec[node] = np.random.uniform(
+                        low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
 
     def initAliasTable(self):
         length = len(self.edges_weight)
