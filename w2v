@@ -1,0 +1,72 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jun 21 10:36:30 2017
+
+@author: hh
+"""
+
+# 通过word2vec生成向量,数据集KDD
+
+from utils import filtered_tagedtext
+from gensim.models import word2vec
+
+
+# 获取数据集的数据文件名
+filenames = []
+with open(r'data/KDD_filelist1', 'r', encoding='UTF-8') as f:
+#with open(r'data/WWW_filelist', 'r', encoding='UTF-8') as f:
+    filelist = f.readlines()
+    for line in filelist:
+        filenames.append(line.split(","))
+
+# 对每个文件进行处理
+count = 0
+for i in range(len(filenames[0])):
+    filename = filenames[0][i]
+#    if(filename=="1225233" or filename=="998449"or filename=="10186200" or filename=="425828" or filename=="9521135"):
+#        continue
+    file_path = r"data/KDD/AggregatedAll/" + filename
+    #file_path = r"data/WWW/AggregatedAll/" + filename
+    corpus = []
+    if(filename == "1225233" or filename == "998449"or filename == "10186200"):
+        with open(file_path, 'r', encoding='GBK') as f:
+            txt = f.readlines()
+            for line in txt:
+                tokens = filtered_tagedtext(line)
+                tokens = tokens.split(" ")
+                corpus.append(tokens)
+    else:
+        with open(file_path, 'r', encoding='UTF-8') as f:
+            txt = f.readlines()
+            for line in txt:
+                tokens = filtered_tagedtext(line)
+                tokens = tokens.split(" ")
+                corpus.append(tokens)
+#    logging.basicConfig(format='%(asctime)s:%(levelname)s: %(message)s', level=logging.INFO)
+    model = word2vec.Word2Vec(corpus, sg=0, size=100, min_count=0,window=5,negative=3, sample=0.001)
+
+    #save_path = r"result_WWW/" + filename
+    save_path = r"result_KDD_CBOW/" + filename
+    content = ""
+    with open(save_path, 'w', encoding='UTF-8') as f:
+        for k, v in model.wv.vocab.items():
+            # model.vocab.items():
+            if(k == ''):
+                continue
+            l = (model[k].tolist())
+            content += str(k) + ' '
+            for i in l:
+                content += str(i) + ' '
+            for i in l[:-1]:
+                content += str(i) + ' '
+            content += str(l[-1])
+            content += '\n'
+        # content.encode('utf-8')
+        f.write(content[:-2])
+
+    # 输出处理数据的进度
+    suma = len(filenames[0])
+    count += 1
+    if(count % 10 == 0):
+        rate = count / suma
+        print ("进度：%s" % str(rate))
