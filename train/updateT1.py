@@ -6,7 +6,7 @@ import networkx as nx
 import csv
 
 
-class updateT:
+class updateT1:
 
     def __init__(self, wtG, wordsVec, dim):
         self.wtG = wtG
@@ -26,10 +26,11 @@ class updateT:
         self.SIGMOID_BOUND = 6
         self.sigmoid_table_size = 1000
         self.neg_table_size = 1000000
-        self.init_rho = 0.001
+        self.init_rho = 0.025
         self.rho = 0.001
         self.num_negative = 5
-        self.M = np.eye(self.dim)
+        self.M = np.zeros((self.dim, self.dim))
+        #self.M = np.eye(self.dim)
         self.loss = 0.0
         self.converge = False
 
@@ -50,7 +51,6 @@ class updateT:
             if node.startswith('T'):
                 self.topicsVec[node] = np.random.uniform(
                     low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
-                # self.topicsVec[node] = np.zeros(self.dim)
 
     def initAliasTable_t(self):
         length = len(self.edges_weight_t)
@@ -153,15 +153,14 @@ class updateT:
         print('initloss=' + str(self.loss))
         initloss = self.loss
         for i in range(total_iter):
-            if self.rho < self.init_rho * 0.01:
-                self.rho = self.init_rho * 0.01
+            if self.rho < self.init_rho * 0.0001:
+                self.rho = self.init_rho
             if i % 10000 == 0 and i != 0:
                 curloss = self.getloss()
-                # print('curloss=' + str(curloss))
-                # print('rho=' + str(self.rho))
-                # if math.fabs(curloss - self.loss) / self.loss < 0.01 and initloss > curloss and initloss > self.loss:
-                if math.fabs(curloss - self.loss) / self.loss < 0.001:
-                    self.converge = False
+                print('curloss=' + str(curloss))
+                print('rho=' + str(self.rho))
+                if math.fabs(curloss - self.loss) / self.loss <= 0.0001 and initloss > curloss and initloss > self.loss:
+                    self.converge = True
                 elif self.loss >= curloss:
                     self.rho = self.rho * 0.5
                 else:
@@ -187,12 +186,9 @@ class updateT:
                 edge = choiceEdge()
             u = edge[0]
             v = edge[1]
-            a = np.dot(np.dot(self.wordsVec[u].T, self.M), self.topicsVec[v])
-            b = self.FastSigmoid(a)
-            if b == 0:
-                b = 0.0001
-            c = -math.log(b)
-            loss = loss + c
+            loss += - \
+                math.log(self.FastSigmoid(
+                    np.dot(np.dot(self.wordsVec[u].T, self.M), self.topicsVec[v])))
             label = 0
             targets = []
             target = ''
@@ -204,23 +200,14 @@ class updateT:
                 if target == u or target == v:
                     j -= 1
                     continue
-                value = self.FastSigmoid(
-                    1 - np.dot(np.dot(self.wordsVec[u].T, self.M), self.topicsVec[target]))
-                if value == 0:
-                    value = 0.0001
-                loss += - math.log(value)
+                loss += - \
+                    math.log(self.FastSigmoid(
+                        1 - np.dot(np.dot(self.wordsVec[u].T, self.M), self.topicsVec[target])))
         return loss
 
     def trainT(self):
         vec_error = np.zeros(self.dim)
         M_error = np.zeros((self.dim, self.dim))
-        # signM = np.zeros((self.dim, self.dim))
-        # for m in range(self.dim):
-        #     for n in range(self.dim):
-        #         if self.M[m][n] > 0:
-        #             signM[m][n] = 1
-        #         if self.M[m][n] < 0:
-        #             signM[m][n] = -1
 
         def choiceEdge():
             random1 = np.random.random()
@@ -235,6 +222,7 @@ class updateT:
         v = edge[1]
         w = float(edge[2])
         label = 0
+        targets = []
         target = ''
         for i in range(self.num_negative + 1):
             if i == 0:
@@ -249,6 +237,7 @@ class updateT:
                     i -= 1
                     continue
                 label = 0
+            targets.append(target)
             x = np.dot(
                 np.dot(self.wordsVec[u].T, self.M), self.topicsVec[target])
             g = (label - self.FastSigmoid(x)) * self.rho
@@ -257,44 +246,7 @@ class updateT:
                 np.dot(self.wordsVec[u], self.topicsVec[target].T)
             self.topicsVec[target] += g * np.dot(self.M, self.wordsVec[u])
         self.wordsVec[u] = self.wordsVec[u] + vec_error
-        # self.M = self.M + M_error + 0.01 * signM
         self.M = self.M + M_error
-
-    def trainT_noM(self):
-        vec_error = np.zeros(self.dim)
-
-        def choiceEdge():
-            random1 = np.random.random()
-            random2 = np.random.random()
-            edgeID = int(self.sampleAnEdge_t(random1, random2))
-            edge = self.edges_t[edgeID]
-            return edge
-        edge = choiceEdge()
-        while edge[0] not in self.wordsVec.keys():
-            edge = choiceEdge()
-        u = edge[0]
-        v = edge[1]
-        w = float(edge[2])
-        label = 0
-        target = ''
-        for i in range(self.num_negative + 1):
-            if i == 0:
-                label = 1
-                target = v
-            else:
-                neg_index = int(self.neg_table_size * np.random.random())
-                target = self.neg_table_t[neg_index]
-                if u == None or v == None or target == None:
-                    print(u, v, neg_index, target)
-                if target == u or target == v:
-                    i -= 1
-                    continue
-                label = 0
-            x = np.dot(self.wordsVec[u], self.topicsVec[target])
-            g = (label - self.FastSigmoid(x)) * self.rho
-            vec_error = vec_error + g * self.topicsVec[target]
-            self.topicsVec[target] += g * self.wordsVec[u]
-        self.wordsVec[u] = self.wordsVec[u] + vec_error
 
     def output(self, path, wordsVec):
         with open(path, mode='w', encoding='utf-8')as f:

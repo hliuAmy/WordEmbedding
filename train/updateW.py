@@ -22,7 +22,7 @@ class updateW:
         self.sigmoid_table_size = 1000
         self.neg_table_size = 1000000
         self.init_rho = 0.025
-        self.rho = 0.0
+        self.rho = 0.025
         self.num_negative = 5
 
     def readG(self):

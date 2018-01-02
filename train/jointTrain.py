@@ -6,21 +6,15 @@ import networkx as nx
 import csv
 
 
-class embTrain:
+class jointTrain:
 
-    def __init__(self, wG, wtG, wordsVec, topicsVec, M, dim):
+    def __init__(self, wG, wtG, dim):
         self.wG = wG
         self.wtG = wtG
         self.dim = dim
-        if wordsVec == None:
-            self.wordsVec = {}
-        else:
-            self.wordsVec = wordsVec
-        if topicsVec == None:
-            self.topicsVec = {}
-        else:
-            self.topicsVec = topicsVec
+        self.wordsVec = {}
         self.contextVec = {}
+        self.topicsVec = {}
         self.edges_weight = []
         self.edges = []
         self.nodes_weight = {}
@@ -37,12 +31,10 @@ class embTrain:
         self.SIGMOID_BOUND = 6
         self.sigmoid_table_size = 1000
         self.neg_table_size = 1000000
-        self.init_rho = 0.001
-        self.rho = 0.001
+        self.init_rho = 0.025
+        self.rho = 0.0
         self.num_negative = 5
-        self.M = M
-        self.loss = 0.0
-        self.converge = False
+        self.M = np.zeros((self.dim, self.dim))
 
     def readG(self):
         for u, v, d in self.wG.edges(data=True):
@@ -54,12 +46,9 @@ class embTrain:
             else:
                 self.nodes_weight[u] = w
         for node in self.wG.nodes():
+            self.wordsVec[node] = np.random.uniform(
+                low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
             self.contextVec[node] = np.zeros(self.dim)
-        if len(self.wordsVec.keys()) == 0:
-            for node in self.wG.nodes():
-                if node.startswith('T'):
-                    self.wordsVec[node] = np.random.uniform(
-                        low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
 
         for u, v, d in self.wtG.edges(data=True):
             w = float(d['weight']) * 10
@@ -69,12 +58,10 @@ class embTrain:
                 self.nodes_weight_t[v] += w
             else:
                 self.nodes_weight_t[v] = w
-        if len(self.topicsVec.keys()) == 0:
-            for node in self.wtG.nodes():
-                if node.startswith('T'):
-                    # self.topicsVec[node] = np.random.uniform(
-                    #     low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
-                    self.topicsVec[node] = np.zeros(self.dim)
+        for node in self.wtG.nodes():
+            if node.startswith('T'):
+                self.topicsVec[node] = np.random.uniform(
+                    low=-0.5 / self.dim, high=0.5 / self.dim, size=(self.dim))
 
     def initAliasTable(self):
         length = len(self.edges_weight)
@@ -245,115 +232,32 @@ class embTrain:
         self.initAliasTable_t()
         self.initNegTable_t()
         self.initSigmoidTable()
-        self.loss = self.getloss()
         print('init is ok')
 
-    def train(self, total_iter, outputPath, alpha, beta):
+    def train(self, total_iter, path1, path2, path3):
+        print("***pre-train***")
+        for i in range(total_iter):
+            self.trainW()
+            if i == total_iter - 1:
+                self.output(path1, self.wordsVec)
+        for i in range(total_iter):
+            self.trainT()
+            if i == total_iter - 1:
+                self.output(path2, self.wordsVec)
+        print('***joint train***')
         for i in range(total_iter):
             if i % 100000 == 0:
                 print(i)
             if i % 1000000 == 0:
                 self.rho = self.init_rho * (1.0 - float(i) / total_iter)
-                if self.rho < self.init_rho * 0.01:
-                    self.rho = self.init_rho * 0.01
+                if self.rho < self.init_rho * 0.0001:
+                    self.rho = self.init_rho * 0.0001
                 print(i, ':', self.rho)
-            self.trainW(alpha)
-            self.trainT(alpha, beta)
-            # self.trainT_noM()
-            if i == total_iter - 1:
-                self.output(outputPath, self.wordsVec)
-
-    def train(self, total_iter, outputPath):
-        print('initloss=' + str(self.loss))
-        initloss = self.loss
-        for i in range(total_iter):
-            if self.rho < self.init_rho * 0.001:
-                self.rho = self.init_rho * 0.001
-            if i % 10000 == 0 and i != 0:
-                curloss = self.getloss()
-                # print('curloss=' + str(curloss))
-                # print('rho=' + str(self.rho))
-                if math.fabs(curloss - self.rho) / self.loss < 0.001:
-                    self.converge = False
-                elif self.loss >= curloss:
-                    self.rho = self.rho * 0.5
-                else:
-                    self.rho = -self.rho * 0.5
-                self.loss = curloss
             self.trainW()
             self.trainT()
-            if i == total_iter - 1 or self.converge == True:
-                print(self.loss)
-                self.output(outputPath, self.wordsVec)
-                break
-
-    def getloss(self):
-        loss = 0.0
-        for i in range(len(self.edges_t)):
-            def choiceEdge():
-                random1 = np.random.random()
-                random2 = np.random.random()
-                edgeID = int(self.sampleAnEdge_t(random1, random2))
-                edge = self.edges_t[edgeID]
-                return edge
-            edge = choiceEdge()
-            while edge[0] not in self.wordsVec.keys():
-                edge = choiceEdge()
-            u = edge[0]
-            v = edge[1]
-            a = np.dot(np.dot(self.wordsVec[u].T, self.M), self.topicsVec[v])
-            b = self.FastSigmoid(a)
-            if b == 0:
-                b = 0.0001
-            c = -math.log(b)
-            loss = loss + c
-            label = 0
-            target = ''
-            for j in range(self.num_negative):
-                neg_index = int(self.neg_table_size * np.random.random())
-                target = self.neg_table_t[neg_index]
-                if u == None or v == None or target == None:
-                    print(u, v, neg_index, target)
-                if target == u or target == v:
-                    j -= 1
-                    continue
-                value = self.FastSigmoid(
-                    1 - np.dot(np.dot(self.wordsVec[u].T, self.M), self.topicsVec[target]))
-                if value == 0:
-                    value = 0.0001
-                loss += -math.log(value)
-        for i1 in range(len(self.edges)):
-            def choiceEdge():
-                random11 = np.random.random()
-                random21 = np.random.random()
-                edgeID1 = int(self.sampleAnEdge(random11, random21))
-                edge1 = self.edges[edgeID1]
-                return edge1
-            edge1 = choiceEdge()
-            while edge1[0] not in self.wordsVec.keys():
-                edge1 = choiceEdge()
-            u1 = edge1[0]
-            v1 = edge1[1]
-            value = self.FastSigmoid(
-                np.dot(self.wordsVec[u1], self.contextVec[v1]))
-            if value == 0:
-                value = 0.0001
-            loss += - math.log(value)
-            target1 = ''
-            for j1 in range(self.num_negative):
-                neg_index1 = int(self.neg_table_size * np.random.random())
-                target1 = self.neg_table[neg_index1]
-                if u == None or v == None or target1 == None:
-                    print(u, v, neg_index1, target1)
-                if target1 == u or target1 == v:
-                    j1 -= 1
-                    continue
-                value = self.FastSigmoid(
-                    1 - np.dot(self.wordsVec[u1], self.contextVec[target1]))
-                if value == 0:
-                    value = 0.0001
-                loss += -math.log(value)
-        return loss
+            # self.trainT_noM()
+            if i == total_iter - 1:
+                self.output(path3, self.wordsVec)
 
     def trainW(self):
         vec_error = np.zeros(self.dim)
@@ -391,9 +295,9 @@ class embTrain:
         # signM = np.zeros((self.dim, self.dim))
         # for m in range(self.dim):
         #     for n in range(self.dim):
-        #         if self.M[m][n] > 0:
+        #         if self.M[m][n] >0:
         #             signM[m][n] = 1
-        #         if self.M[m][n] < 0:
+        #         if self.M[m][n] <0:
         #             signM[m][n] = -1
 
         def choiceEdge():
@@ -431,7 +335,7 @@ class embTrain:
                 np.dot(self.wordsVec[u], self.topicsVec[target].T)
             self.topicsVec[target] += g * np.dot(self.M, self.wordsVec[u])
         self.wordsVec[u] = self.wordsVec[u] + vec_error
-        # self.M = self.M + M_error + 0.01 * signM
+        #self.M = self.M + M_error + beta * signM
         self.M = self.M + M_error
 
     def trainT_noM(self):
@@ -507,3 +411,42 @@ class embTrain:
             wordsVec[word] = avg
         path = '../result/KDD/words.emb_avg_tf_count_noM'
         self.output(path, wordsVec)
+
+
+if __name__ == '__main__':
+    def readFile(path):
+        G = nx.DiGraph()
+        with open(path, mode='r', encoding='utf-8') as f:
+            text = f.read()
+        edges = []
+        for line in text.split('\n'):
+            if len(line.strip()) == 0:
+                continue
+            elif len(line.split(',')) != 3:
+                continue
+            else:
+                edge = tuple(line.split(','))
+                if 'a' in edge:
+                    continue
+                else:
+                    edges.append(edge)
+        G.add_weighted_edges_from(edges)
+        return G
+    dataset = "KDD"
+    input_wordsG_path = '../data_preparation/result_graph/' + \
+        dataset + '/wordsG_tf_count.data'
+    input_topicG_path = '../data_preparation/result_graph/' + dataset + '/topicG.data'
+    trainG_path = '../result/' + dataset + '/trainG-emb31'
+    trainT_path = '../result/' + dataset + '/trainT-emb31'
+    result_path = '../result/' + dataset + '/emb31'
+
+    print("*****Read Data*****")
+    wG = readFile(input_wordsG_path)
+    print(dataset + "'s wordsG's number of edges is ", len(wG.edges()))
+    wtG = readFile(input_topicG_path)
+    print(dataset + "'s topicG's number of edges is ", len(wtG.edges()))
+
+    train = jointTrain(wG, wtG, dim=200)
+    train.initial()
+    train.train(total_iter=1000000, path1=trainG_path,
+                path2=trainT_path, path3=result_path)
