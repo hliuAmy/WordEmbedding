@@ -32,7 +32,7 @@ class jointTrain:
         self.sigmoid_table_size = 1000
         self.neg_table_size = 1000000
         self.init_rho = 0.025
-        self.rho = 0.0
+        self.rho = 0.025
         self.num_negative = 5
         self.M = np.zeros((self.dim, self.dim))
 
@@ -241,10 +241,10 @@ class jointTrain:
             if i == total_iter - 1:
                 self.output(path1, self.wordsVec)
         for i in range(total_iter):
-            self.trainT()
+            self.trainT_noM()
             if i == total_iter - 1:
                 self.output(path2, self.wordsVec)
-        print('***joint train***')
+        # print('***joint train***')
         for i in range(total_iter):
             if i % 100000 == 0:
                 print(i)
@@ -254,8 +254,8 @@ class jointTrain:
                     self.rho = self.init_rho * 0.0001
                 print(i, ':', self.rho)
             self.trainW()
-            self.trainT()
-            # self.trainT_noM()
+            # self.trainT()
+            self.trainT_noM()
             if i == total_iter - 1:
                 self.output(path3, self.wordsVec)
 
